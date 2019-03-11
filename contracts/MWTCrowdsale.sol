@@ -143,7 +143,7 @@ contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
     }
 
     function buyTokens(address _beneficiary) public payable {
-        uint256 weiAmount = msg.value - oraclize_getPrice("URL");
+        uint256 weiAmount = msg.value.sub(oraclize_getPrice("URL"));
 
         _preValidatePurchase(_beneficiary, weiAmount);
 
