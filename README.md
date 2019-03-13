@@ -18,3 +18,34 @@ our platform. It’s a kind of lottery, but unusual one, kind an auction, but no
 concluded. Our aim is to built a platform that creates an innate trust in a potentially
 corrupt system for one to win something that is auctioned through a decentralized
 blockchain system that benefits all.
+
+# Instructions for testing
+## To compile:
+Change **_escrow** visibility in RefundableCrowdsale to **internal** from **private**
+
+Change **_weiRaised** visibility in Crowdsale to **internal** from **private**
+
+Run: 
+
+    truffle compile
+
+## To test:
+Launch Ganache on port 7545 
+>Or any other development tool on different port. Just make sure to use it in following commands and configure for test network in **truffle.js**
+
+Run: 
+
+    ethereum-bridge -H localhost:7545 -a 5 --dev
+and wait till it fully loads. Do not close this console window till the end of testing.
+
+Run: 
+
+    truffle test --network test
+to run all test scenarios
+
+## To migrate:
+Delete **build** folder
+
+Run: 
+
+    truffle migrate --network development

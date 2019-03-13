@@ -2,10 +2,12 @@ pragma solidity ^0.5.0;
 
 import "./MinimalWinToken.sol";
 import "../node_modules/openzeppelin-solidity/contracts/crowdsale/distribution/RefundableCrowdsale.sol";
+import "../node_modules/openzeppelin-solidity/contracts/crowdsale/validation/CappedCrowdsale.sol";
+import "../node_modules/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../node_modules/openzeppelin-solidity/contracts/crowdsale/emission/MintedCrowdsale.sol";
 import "installed_contracts/oraclize-api/contracts/usingOraclize.sol";
 
-contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
+contract MWTCrowdsale is RefundableCrowdsale, CappedCrowdsale, MintedCrowdsale, Ownable, usingOraclize {
     struct Deposit {
         address addr;
         uint256 weiAmount;
@@ -15,81 +17,78 @@ contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
     mapping (bytes32 => Deposit) private depositsInProcess;
     mapping (address => uint256) public fundsByAddress;
 
-    // How many seconds stage lasts
-    uint256 public stageDuration;
-
-    uint256 public totalTokens;
+    uint256 private preICOEndTime;
+    uint256 private firstStageEndTime;
+    uint256 private secondStageEndTime;
+    
+    uint256 public firstHalfTeamTokens;
+    uint256 public secondHalfTeamTokens;
+    uint256 public firstHalfAdvisersTokens;
+    uint256 public secondHalfAdvisersTokens;
+    uint256 public bountiesTokens;
+    uint256 public projectTokens;    
 
     constructor (
-      uint256 _openingTime, 
-      uint256 _closingTime,
-      address payable _wallet, 
-      MinimalWinToken _token,
-      uint256 _stageDuration,
-      uint256 _totalTokens
+        uint256 _openingTime, 
+        uint256 _closingTime,
+        uint256 _preICOEndTime,
+        uint256 _firstStageEndTime,
+        uint256 _secondStageEndTime,
+        address payable _wallet, 
+        MinimalWinToken _token,
+        uint256 _goal,
+        uint256 _cap
     ) 
     public
-      Crowdsale(1, _wallet, _token)
-      TimedCrowdsale(_openingTime, _closingTime)
-      RefundableCrowdsale(1)
+        Crowdsale(1, _wallet, _token)
+        TimedCrowdsale(_openingTime, _closingTime)
+        RefundableCrowdsale(_goal)
+        CappedCrowdsale(_cap)
     {
-        require(_stageDuration > 0);
-        
-        stageDuration = _stageDuration;
-        totalTokens = _totalTokens;
-        _escrow = new RefundEscrow(wallet());
+        //As goal needs to be met for a successful crowdsale
+        //the value needs to less or equal than a cap which is limit for accepted funds
+        require(_goal <= _cap, "Goal should be less than cap");
+        require(_preICOEndTime > _openingTime, "Opening time should be less than Pre ICO end time");
+        require(_firstStageEndTime > _preICOEndTime, "Pre ICO end time should be less than First stage end time");
+        require(_secondStageEndTime > _firstStageEndTime, "First stage end time should be less than Second stage end time");
+        require(_closingTime > _secondStageEndTime, "Second stage end time should be less than Closing time");
 
-        //TODO: COMMENT THIS WHEN DEPLOYING TO ANYTHING EXCEPT PRIVATE NET
-        // ethereum-bridge -H localhost:7545 -a 5
-        // OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475);
+        preICOEndTime = _preICOEndTime;
+        firstStageEndTime = _firstStageEndTime;
+        secondStageEndTime = _secondStageEndTime;
     }
 
     event LogNewOraclizeQuery(string description);
     event RefundedLostTransfer(address indexed beneficiary, uint256 weiAmount);
 
-    /**
-    * @dev Checks whether the period in which the crowdsale is open has already elapsed.
-    * @return Whether crowdsale period has elapsed
-    */
-    function hasClosed() public view returns (bool) {
-        return super.hasClosed() || goalReached();
+    function _finalization() internal {
+      generateAdditionalTokens();
+    
+      super._finalization();
     }
 
-    /**
-    * @dev Reverts if not in crowdsale time range. 
-    */
-    modifier onlyWhileOpen {
-        require(now >= openingTime() && now <= closingTime());
-        require(goalReached() == false);
-        _;
-    }
-
-    function goalReached() public view returns (bool) {
-        return token().totalSupply() >= totalTokens;
-    }
-
-    function elapsedTime() internal view returns (uint256) {
-        uint256 time = 0;
-
-        if (block.timestamp > openingTime()) {
-            time = block.timestamp.sub(openingTime());
+    function minimumPurchaseAmount() internal view returns (uint256) {
+        if (currentStage() == 0) {
+            return 1000000000000000000;
         }
 
-        return time;
+        return 250000000000000000;
     }
 
     function currentStage() public view returns (uint256) {
-        uint256 elapsedTimeVar = elapsedTime();
-
-        // uint256 currentStage = elapsedTime.div(uint256(86400 * 7));
-        // uint256 currentStage = elapsedTimeVar.div(60);
-        uint256 stage = elapsedTimeVar.div(stageDuration);
-
-        if (stage > 3) {
-            stage = 3;
+        if (block.timestamp <= preICOEndTime) {
+            return 0;
         }
 
-        return stage;
+        if (block.timestamp <= firstStageEndTime) {
+            return 1;
+        }
+
+        if (block.timestamp <= secondStageEndTime) {
+            return 2;
+        }
+
+        return 3;
     }
 
     /**
@@ -98,7 +97,7 @@ contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
     * @return Number of tokens that can be purchased with the specified _weiAmount
     */
     function _getTokenAmount(uint256 _weiAmount, uint256 _rate) internal view returns (uint256) {
-        uint256 amount = _weiAmount.mul(_rate).div(1000000); //To counteract 10^6 rate div by 1000000
+        uint256 amount = _weiAmount.mul(_rate).div(100000); //To counteract 10^6 rate div by 1000000
 
         uint256 stage = currentStage();
 
@@ -120,7 +119,7 @@ contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
     }
 
     function __callback(bytes32 myid, string memory result) public {
-        require(!finalized());
+        require(!finalized(), "Crowdsale is finished");
         require(depositsInProcess[myid].weiAmount != 0);
         require(msg.sender == oraclize_cbAddress());
         require(bytes(result).length != 0);
@@ -143,6 +142,9 @@ contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
     }
 
     function buyTokens(address _beneficiary) public payable {
+        require(msg.value >= minimumPurchaseAmount(), "Wei amount is less than minimum allowed");
+        require(msg.value <= 100000000000000000000, "Wei amount is higher than maximum allowed");
+
         uint256 weiAmount = msg.value.sub(oraclize_getPrice("URL"));
 
         _preValidatePurchase(_beneficiary, weiAmount);
@@ -160,6 +162,9 @@ contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
     function processDeposits(bytes32 myid, uint256 _rate) internal {
         Deposit storage deposit = depositsInProcess[myid];
 
+        require(fundsByAddress[deposit.sender].sub(deposit.weiAmount) >=0);
+        fundsByAddress[deposit.sender] = fundsByAddress[deposit.sender].sub(deposit.weiAmount);
+
         // calculate token amount to be created
         uint256 tokens = _getTokenAmount(deposit.weiAmount, _rate);
 
@@ -167,12 +172,93 @@ contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
         _weiRaised = _weiRaised.add(deposit.weiAmount);
 
         _processPurchase(deposit.addr, tokens);
-        emit TokensPurchased(deposit.sender, deposit.addr, deposit.weiAmount, tokens);
 
         _forwardFunds(deposit);
         
-        fundsByAddress[deposit.sender] = fundsByAddress[deposit.sender].sub(deposit.weiAmount);
         delete depositsInProcess[myid];
+
+        emit TokensPurchased(deposit.sender, deposit.addr, deposit.weiAmount, tokens);
+    }
+
+    function generateAdditionalTokens() internal {
+        uint256 purchased_amount = token().totalSupply();
+        uint256 additional_tokens = purchased_amount.mul(55).div(45);
+        uint256 team_tokens = additional_tokens.mul(15).div(55).div(2);
+        uint256 advisers_tokens = additional_tokens.mul(2).div(55).div(2);
+        uint256 bounties_tokens = additional_tokens.mul(3).div(55);
+        uint256 project_tokens = additional_tokens.mul(35).div(55);
+
+        firstHalfTeamTokens = firstHalfTeamTokens.add(team_tokens);
+        secondHalfTeamTokens = secondHalfTeamTokens.add(team_tokens);
+        firstHalfAdvisersTokens = firstHalfAdvisersTokens.add(advisers_tokens);
+        secondHalfAdvisersTokens = secondHalfAdvisersTokens.add(advisers_tokens);
+        bountiesTokens = bountiesTokens.add(bounties_tokens);
+        projectTokens = projectTokens.add(project_tokens);
+    }
+
+    function getFirstHalfTeamTokens(address beneficiary, uint256 tokenAmount) public onlyOwner {
+        require(finalized(), "Can't get additional tokens while contract is not finalized");
+        require(goalReached(), "Can't get additional tokens if goal wasn't reached");
+        require(block.timestamp.sub(closingTime()) >= 15768000, "First half of team tokens will become available a year after contract finalization");
+        require(firstHalfTeamTokens >= tokenAmount, "Not enough tokens stored for team in first half");
+
+        firstHalfTeamTokens = firstHalfTeamTokens.sub(tokenAmount);
+
+        require(MinimalWinToken(address(token())).mint(beneficiary, tokenAmount), "Minting first half of team tokens failed");
+    }
+
+    function getSecondHalfTeamTokens(address beneficiary, uint256 tokenAmount) public onlyOwner {
+        require(finalized(), "Can't get additional tokens while contract is not finalized");
+        require(goalReached(), "Can't get additional tokens if goal wasn't reached");
+        require(block.timestamp.sub(closingTime()) >= 31536000, "First half of team tokens will become available a year after contract finalization");
+        require(secondHalfTeamTokens >= tokenAmount, "Not enough tokens stored for team in second half");
+
+        secondHalfTeamTokens = secondHalfTeamTokens.sub(tokenAmount);
+
+        require(MinimalWinToken(address(token())).mint(beneficiary, tokenAmount), "Minting second half of team tokens failed");
+    }
+
+    function getFirstHalfAdvisersTokens(address beneficiary, uint256 tokenAmount) public onlyOwner {
+        require(finalized(), "Can't get additional tokens while contract is not finalized");
+        require(goalReached(), "Can't get additional tokens if goal wasn't reached");
+        require(block.timestamp.sub(closingTime()) >= 15768000, "First half of advisers tokens will become available a year after contract finalization");
+        require(firstHalfAdvisersTokens >= tokenAmount, "Not enough tokens stored for advisers in first half");
+
+        firstHalfAdvisersTokens = firstHalfAdvisersTokens.sub(tokenAmount);
+
+        require(MinimalWinToken(address(token())).mint(beneficiary, tokenAmount), "Minting first half of advisers tokens failed");
+    }
+
+    function getSecondHalfAdvisersTokens(address beneficiary, uint256 tokenAmount) public onlyOwner {
+        require(finalized(), "Can't get additional tokens while contract is not finalized");
+        require(goalReached(), "Can't get additional tokens if goal wasn't reached");
+        require(block.timestamp.sub(closingTime()) >= 31536000, "First half of advisers tokens will become available a year after contract finalization");
+        require(secondHalfAdvisersTokens >= tokenAmount, "Not enough tokens stored for advisers in second half");
+
+        secondHalfAdvisersTokens = secondHalfAdvisersTokens.sub(tokenAmount);
+
+        require(MinimalWinToken(address(token())).mint(beneficiary, tokenAmount), "Minting second half of advisers tokens failed");
+    }
+
+    function getBountiesTokens(address beneficiary, uint256 tokenAmount) public onlyOwner {
+        require(finalized(), "Can't get additional tokens while contract is not finalized");
+        require(goalReached(), "Can't get additional tokens if goal wasn't reached");
+        require(bountiesTokens >= tokenAmount, "Not enough tokens stored for bounties");
+
+        bountiesTokens = bountiesTokens.sub(tokenAmount);
+
+        require(MinimalWinToken(address(token())).mint(beneficiary, tokenAmount), "Minting bounty tokens failed");
+    }
+
+    function getProjectTokens(address beneficiary, uint256 tokenAmount) public onlyOwner {
+        require(finalized(), "Can't get additional tokens while contract is not finalized");
+        require(goalReached(), "Can't get additional tokens if goal wasn't reached");
+        require(block.timestamp.sub(closingTime()) >= 31536000, "Project tokens will become available a year after contract finalization");
+        require(projectTokens >= tokenAmount, "Not enough tokens stored for project");
+
+        projectTokens = projectTokens.sub(tokenAmount);
+
+        require(MinimalWinToken(address(token())).mint(beneficiary, tokenAmount), "Minting project tokens failed");
     }
 
     function _forwardFunds(Deposit memory deposit) internal {
@@ -180,6 +266,7 @@ contract MWTCrowdsale is RefundableCrowdsale, MintedCrowdsale, usingOraclize {
     }
 
     function refundLostTransfer() public {
+        // require(finalized());
         uint256 lostFunds = fundsByAddress[msg.sender];
         require(lostFunds > 0);
         fundsByAddress[msg.sender] = 0;
