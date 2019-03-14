@@ -2,7 +2,7 @@ const MinimalWinToken = artifacts.require("./MinimalWinToken.sol");
 const MWTCrowdsale = artifacts.require("./MWTCrowdsale.sol");
 
 module.exports = function(deployer, network, accounts) {
-    if (network === 'test') {
+    if (network === 'test' || network === 'develop') {
         
     }
     else {

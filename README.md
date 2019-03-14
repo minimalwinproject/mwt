@@ -31,7 +31,7 @@ Run:
 
 ## To test:
 Launch Ganache on port 7545 
->Or any other development tool on different port. Just make sure to use it in following commands and configure for test network in **truffle.js**
+>Or any other development tool on different port. Just make sure to use it in following commands and configure for test network in **truffle.js**. Also you will need to update port in each test in web3 constructor
 
 Run: 
 
@@ -40,7 +40,22 @@ and wait till it fully loads. Do not close this console window till the end of t
 
 Run: 
 
-    truffle test --network test
+    truffle test test/minimal_win_token.js --network test
+
+![](minimal_win_token_tests_passed.png)
+
+    truffle test test/m_w_t_crowdsale1.js --network test
+
+![](m_w_t_crowdsale1_tests_passed.png)
+
+    truffle test test/m_w_t_crowdsale2.js --network test
+
+![](m_w_t_crowdsale2_tests_passed.png)
+
+    truffle test test/m_w_t_crowdsale3.js --network test
+
+![](m_w_t_crowdsale3_tests_passed.png)
+
 to run all test scenarios
 
 ## To migrate:
