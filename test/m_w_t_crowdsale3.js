@@ -1,6 +1,7 @@
 const { BN, balance, ether, should, shouldFail, time } = require('openzeppelin-test-helpers');
 
 var utils = require('web3-utils');
+const fetch = require("node-fetch");
 
 const Web3 = require('web3')
 const { waitForEvent } = require('./utils')
@@ -69,6 +70,196 @@ contract('MWTCrowdsale', function ([_, deployer, owner, wallet, investor]) {
   //   balance_diff.should.be.bignumber.equal('0');
   // });
 
+  it('Test token amount 0.25 ether stage 3', async function () {
+    const url = "http://35.205.73.238:7575/ethAvgRate";
+    let rate = new BN('0')
+    const getData = async url => {
+      try {
+        const response = await fetch(url);
+        const json = await response.json();
+        rate = new BN(json.rate*1000000)
+        // console.log(json);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    await getData(url);
+
+    rate.should.be.bignumber.greaterThan('0');
+
+    const investmentAmount = ether('0.25');
+
+    const lowest_expected_tokens = investmentAmount.mul(rate).mul(new BN('97')).mul(new BN('10')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+    const highest_expected_tokens = investmentAmount.mul(rate).mul(new BN('103')).mul(new BN('10')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+
+    await time.increaseTo(this.secondStageEndTime.add(time.duration.seconds(1)));
+
+    let token_balance1 = await this.token.balanceOf(investor)
+
+    await this.crowdsale.buyTokens(investor, { value: investmentAmount, from: investor, gasPrice: 0  });
+
+    await waitForEvent(this.events.TokensPurchased)
+
+    let token_balance2 = await this.token.balanceOf(investor)
+
+    let token_balance_diff = token_balance2.sub(token_balance1)
+
+    token_balance_diff.should.be.bignumber.greaterThan(lowest_expected_tokens);
+    token_balance_diff.should.be.bignumber.lessThan(highest_expected_tokens);
+  });
+
+  it('Test token amount 1 ether stage 3', async function () {
+    const url = "http://35.205.73.238:7575/ethAvgRate";
+    let rate = new BN('0')
+    const getData = async url => {
+      try {
+        const response = await fetch(url);
+        const json = await response.json();
+        rate = new BN(json.rate*1000000)
+        // console.log(json);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    await getData(url);
+
+    rate.should.be.bignumber.greaterThan('0');
+
+    const investmentAmount = ether('1');
+
+    const lowest_expected_tokens = investmentAmount.mul(rate).mul(new BN('97')).mul(new BN('10')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+    const highest_expected_tokens = investmentAmount.mul(rate).mul(new BN('103')).mul(new BN('10')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+
+    await time.increaseTo(this.secondStageEndTime.add(time.duration.seconds(1)));
+
+    let token_balance1 = await this.token.balanceOf(investor)
+
+    await this.crowdsale.buyTokens(investor, { value: investmentAmount, from: investor, gasPrice: 0  });
+
+    await waitForEvent(this.events.TokensPurchased)
+
+    let token_balance2 = await this.token.balanceOf(investor)
+
+    let token_balance_diff = token_balance2.sub(token_balance1)
+
+    token_balance_diff.should.be.bignumber.greaterThan(lowest_expected_tokens);
+    token_balance_diff.should.be.bignumber.lessThan(highest_expected_tokens);
+  });
+
+  it('Test token amount 1 ether stage 2', async function () {
+    const url = "http://35.205.73.238:7575/ethAvgRate";
+    let rate = new BN('0')
+    const getData = async url => {
+      try {
+        const response = await fetch(url);
+        const json = await response.json();
+        rate = new BN(json.rate*1000000)
+        // console.log(json);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    await getData(url);
+
+    rate.should.be.bignumber.greaterThan('0');
+
+    const investmentAmount = ether('1');
+
+    const lowest_expected_tokens = investmentAmount.mul(rate).mul(new BN('97')).mul(new BN('10')).mul(new BN('105')).div(new BN('100')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+    const highest_expected_tokens = investmentAmount.mul(rate).mul(new BN('103')).mul(new BN('10')).mul(new BN('105')).div(new BN('100')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+
+    await time.increaseTo(this.firstStageEndTime.add(time.duration.seconds(1)));
+
+    let token_balance1 = await this.token.balanceOf(investor)
+
+    await this.crowdsale.buyTokens(investor, { value: investmentAmount, from: investor, gasPrice: 0  });
+
+    await waitForEvent(this.events.TokensPurchased)
+
+    let token_balance2 = await this.token.balanceOf(investor)
+
+    let token_balance_diff = token_balance2.sub(token_balance1)
+
+    token_balance_diff.should.be.bignumber.greaterThan(lowest_expected_tokens);
+    token_balance_diff.should.be.bignumber.lessThan(highest_expected_tokens);
+  });
+
+  it('Test token amount 1 ether stage 1', async function () {
+    const url = "http://35.205.73.238:7575/ethAvgRate";
+    let rate = new BN('0')
+    const getData = async url => {
+      try {
+        const response = await fetch(url);
+        const json = await response.json();
+        rate = new BN(json.rate*1000000)
+        // console.log(json);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    await getData(url);
+
+    rate.should.be.bignumber.greaterThan('0');
+
+    const investmentAmount = ether('1');
+
+    const lowest_expected_tokens = investmentAmount.mul(rate).mul(new BN('97')).mul(new BN('10')).mul(new BN('115')).div(new BN('100')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+    const highest_expected_tokens = investmentAmount.mul(rate).mul(new BN('103')).mul(new BN('10')).mul(new BN('115')).div(new BN('100')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+
+    await time.increaseTo(this.preICOEndTime.add(time.duration.seconds(1)));
+
+    let token_balance1 = await this.token.balanceOf(investor)
+
+    await this.crowdsale.buyTokens(investor, { value: investmentAmount, from: investor, gasPrice: 0  });
+
+    await waitForEvent(this.events.TokensPurchased)
+
+    let token_balance2 = await this.token.balanceOf(investor)
+
+    let token_balance_diff = token_balance2.sub(token_balance1)
+
+    token_balance_diff.should.be.bignumber.greaterThan(lowest_expected_tokens);
+    token_balance_diff.should.be.bignumber.lessThan(highest_expected_tokens);
+  });
+
+  it('Test token amount 1 ether pre ICO', async function () {
+    const url = "http://35.205.73.238:7575/ethAvgRate";
+    let rate = new BN('0')
+    const getData = async url => {
+      try {
+        const response = await fetch(url);
+        const json = await response.json();
+        rate = new BN(json.rate*1000000)
+        // console.log(json);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    await getData(url);
+
+    rate.should.be.bignumber.greaterThan('0');
+
+    const investmentAmount = ether('1');
+
+    const lowest_expected_tokens = investmentAmount.mul(rate).mul(new BN('97')).mul(new BN('10')).mul(new BN('125')).div(new BN('100')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+    const highest_expected_tokens = investmentAmount.mul(rate).mul(new BN('103')).mul(new BN('10')).mul(new BN('125')).div(new BN('100')).div(new BN('100')).div(new BN('1000000')).div(new BN('1000000000000000000'))
+
+    await time.increaseTo(this.openingTime);
+
+    let token_balance1 = await this.token.balanceOf(investor)
+
+    await this.crowdsale.buyTokens(investor, { value: investmentAmount, from: investor, gasPrice: 0  });
+
+    await waitForEvent(this.events.TokensPurchased)
+
+    let token_balance2 = await this.token.balanceOf(investor)
+
+    let token_balance_diff = token_balance2.sub(token_balance1)
+
+    token_balance_diff.should.be.bignumber.greaterThan(lowest_expected_tokens);
+    token_balance_diff.should.be.bignumber.lessThan(highest_expected_tokens);
+  });
+
   it('Should allow refunding lost transfer', async function () {
     await time.increaseTo(this.openingTime);
 
@@ -92,6 +283,4 @@ contract('MWTCrowdsale', function ([_, deployer, owner, wallet, investor]) {
 
     balance_diff.should.be.bignumber.equal('0');
   });
-
-
 });

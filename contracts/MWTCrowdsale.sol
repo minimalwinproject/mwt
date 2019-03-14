@@ -97,7 +97,7 @@ contract MWTCrowdsale is RefundableCrowdsale, CappedCrowdsale, MintedCrowdsale, 
     * @return Number of tokens that can be purchased with the specified _weiAmount
     */
     function _getTokenAmount(uint256 _weiAmount, uint256 _rate) internal view returns (uint256) {
-        uint256 amount = _weiAmount.mul(_rate).div(100000); //To counteract 10^6 rate div by 1000000
+        uint256 amount = _weiAmount.mul(_rate).mul(10).div(1000000).div(1000000000000000000); //To counteract 10^6 rate div by 1000000
 
         uint256 stage = currentStage();
 
@@ -112,7 +112,7 @@ contract MWTCrowdsale is RefundableCrowdsale, CappedCrowdsale, MintedCrowdsale, 
         }
 
         if (stage == 2) {
-            multiplier = 110;
+            multiplier = 105;
         }
 
         return amount.mul(multiplier).div(100);
@@ -162,7 +162,7 @@ contract MWTCrowdsale is RefundableCrowdsale, CappedCrowdsale, MintedCrowdsale, 
     function processDeposits(bytes32 myid, uint256 _rate) internal {
         Deposit storage deposit = depositsInProcess[myid];
 
-        require(fundsByAddress[deposit.sender].sub(deposit.weiAmount) >=0);
+        require(fundsByAddress[deposit.sender].sub(deposit.weiAmount) >=0, "Not enough funds for message sender. Most likely transfer was refunded as lost earlier.");
         fundsByAddress[deposit.sender] = fundsByAddress[deposit.sender].sub(deposit.weiAmount);
 
         // calculate token amount to be created
